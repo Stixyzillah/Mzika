@@ -1,25 +1,46 @@
 import streamlit as st
 import json
 
-# Load constitution data
-with open('constitution.json') as f:
-    constitution = json.load(f)
+# Load structured constitution
+@st.cache_data
+def load_constitution():
+    with open("constitution.json", "r", encoding="utf-8") as f:
+        return json.load(f)
 
-st.title("Malawi Constitution Reader 🇲🇼📖")
-query = st.text_input("Search for a right, law, or topic:")
+data = load_constitution()
 
-if query:
-    for chapter in constitution:
-        for section in chapter['sections']:
-            if query.lower() in section['title'].lower() or query.lower() in section['text'].lower():
-                st.subheader(f"{chapter['chapter']} - {section['number']} {section['title']}")
-                st.write(section['text'])
-else:
-    st.write("Browse by Chapter:")
-    for chapter in constitution:
-        with st.expander(chapter['chapter'] + " - " + chapter['title']):
-            for section in chapter['sections']:
-                st.markdown(f"**{section['number']} {section['title']}**")
-                st.write(section['text'][:200] + "...")  # short preview
-                if st.button("Read more", key=section['number']):
-                    st.write(section['text'])   
+# Sidebar options
+st.sidebar.title("📚 Malawi Constitution")
+view_option = st.sidebar.radio("Choose View Mode:", ["Browse by Chapter", "Search by Keyword"])
+
+st.title("Mzika Malawi Constitution Reader")
+
+# Browse Mode
+if view_option == "Browse by Chapter":
+    chapter_titles = [ch["chapter"] for ch in data]
+    selected = st.selectbox("Select a Chapter", chapter_titles)
+
+    chapter = next((c for c in data if c["chapter"] == selected), None)
+    if chapter:
+        st.subheader(chapter["chapter"])
+        for section in chapter["sections"]:
+            with st.expander(f"{section['section']}"):
+                st.write(section["content"])
+
+# Search Mode
+elif view_option == "Search by Keyword":
+    query = st.text_input("Enter a keyword (e.g. land, rights, life):")
+    if query:
+        query = query.lower()
+        found = False
+        for chapter in data:
+            for section in chapter["sections"]:
+                if query in section["content"].lower() or query in section["section"].lower():
+                    if not found:
+                        st.subheader("🔍 Search Results")
+                        found = True
+                    st.markdown(f"**{chapter['chapter']} – {section['section']}**")
+                    st.write(section["content"])
+                    st.markdown("---")
+        if not found:
+            st.warning("No matching content found.")
